@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-lab-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: gitops-lab
+  source:
+    repoURL: REPO_URL_PLACEHOLDER
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-lab-prod
+  # prod: no "automated" block. Argo CD shows OutOfSync after a promotion PR
+  # merges, and a human clicks Sync (or runs `argocd app sync gitops-lab-prod`).
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,40 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/backend.yml"
+      - ".github/workflows/_build-push.yml"
+  pull_request:
+    paths:
+      - "apps/backend/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: pytest -q
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      service: backend

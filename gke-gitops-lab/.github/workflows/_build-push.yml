@@ -1,0 +1,94 @@
+# Reusable workflow: build -> push to Artifact Registry -> bump the image tag in Git.
+# CI never talks to the cluster. Argo CD notices the Git change and deploys it.
+name: build-push-update (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Folder under apps/ and image name (backend | frontend)"
+        required: true
+        type: string
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write          # lets the job request a GitHub OIDC token
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        name: Compute image name and tag
+        run: |
+          echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "image=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/${{ inputs.service }}" >> "$GITHUB_OUTPUT"
+
+      # Keyless: exchange the GitHub OIDC token for short-lived GCP credentials.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build
+        run: |
+          docker build \
+            --build-arg APP_VERSION=${{ steps.meta.outputs.tag }} \
+            -t ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }} \
+            -t ${{ steps.meta.outputs.image }}:latest \
+            apps/${{ inputs.service }}
+
+      - name: Push
+        run: docker push --all-tags ${{ steps.meta.outputs.image }}
+
+      - name: Summary
+        run: |
+          echo "### Pushed \`${{ inputs.service }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  update-manifests:
+    needs: build-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # push the tag bump back to main
+    # Serialise Git writes so backend and frontend pipelines don't race.
+    concurrency:
+      group: gitops-manifest-update
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: imranismail/setup-kustomize@v2
+
+      - name: Set new image tag in the dev overlay
+        working-directory: k8s/overlays/dev
+        run: |
+          kustomize edit set image \
+            ${{ inputs.service }}=${{ needs.build-push.outputs.image }}:${{ needs.build-push.outputs.tag }}
+          git diff
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/dev/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "No manifest change"; exit 0
+          fi
+          git commit -m "deploy(dev): ${{ inputs.service }} ${{ needs.build-push.outputs.tag }} [skip ci]"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            echo "Push rejected, retrying ($i)"; sleep $((i * 3))
+          done
+          exit 1

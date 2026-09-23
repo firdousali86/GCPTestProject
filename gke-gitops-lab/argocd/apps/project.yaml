@@ -1,0 +1,21 @@
+# AppProject = guardrails: which repos may deploy, to which namespaces, which kinds.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gitops-lab
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"   # create the project before the apps that use it
+spec:
+  description: GKE GitOps training lab
+  sourceRepos:
+    - REPO_URL_PLACEHOLDER
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: gitops-lab-*
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

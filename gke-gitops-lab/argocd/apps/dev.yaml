@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-lab-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: gitops-lab
+  source:
+    repoURL: REPO_URL_PLACEHOLDER
+    targetRevision: main
+    path: k8s/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-lab-dev
+  syncPolicy:
+    automated:          # dev: every commit deploys itself
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,42 @@
+# Promotion = a pull request that copies the tested dev image tags into the prod overlay.
+# Review + merge is the approval gate; Argo CD prod is manual-sync as a second gate.
+name: promote-to-prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy image tags from dev to prod
+        run: |
+          DEV=k8s/overlays/dev/kustomization.yaml
+          PROD=k8s/overlays/prod/kustomization.yaml
+          echo "Promoting these images from dev to prod:" > "$RUNNER_TEMP/body.md"
+          echo "" >> "$RUNNER_TEMP/body.md"
+          for svc in backend frontend; do
+            name=$(yq ".images[] | select(.name == \"$svc\") | .newName" "$DEV")
+            tag=$(yq  ".images[] | select(.name == \"$svc\") | .newTag"  "$DEV")
+            old=$(yq  ".images[] | select(.name == \"$svc\") | .newTag"  "$PROD")
+            yq -i "(.images[] | select(.name == \"$svc\") | .newName) = \"$name\"" "$PROD"
+            yq -i "(.images[] | select(.name == \"$svc\") | .newTag)  = \"$tag\""  "$PROD"
+            echo "- **$svc**: \`$old\` → \`$tag\`" >> "$RUNNER_TEMP/body.md"
+          done
+          echo "" >> "$RUNNER_TEMP/body.md"
+          echo "After merging, sync **gitops-lab-prod** in Argo CD." >> "$RUNNER_TEMP/body.md"
+          git diff
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: promote/prod-${{ github.run_number }}
+          commit-message: "promote: dev -> prod (run ${{ github.run_number }})"
+          title: "Promote dev → prod (run ${{ github.run_number }})"
+          body-path: ${{ runner.temp }}/body.md
+          delete-branch: true

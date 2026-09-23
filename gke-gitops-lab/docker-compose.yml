@@ -1,0 +1,19 @@
+# Module 1: run both services locally before touching the cloud.
+#   docker compose up --build   ->  http://localhost:8080
+services:
+  backend:
+    build:
+      context: apps/backend
+      args:
+        APP_VERSION: local
+    environment:
+      APP_ENV: local
+  frontend:
+    build:
+      context: apps/frontend
+      args:
+        APP_VERSION: local
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend

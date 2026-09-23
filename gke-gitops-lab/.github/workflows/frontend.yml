@@ -1,0 +1,43 @@
+name: frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/frontend.yml"
+      - ".github/workflows/_build-push.yml"
+  pull_request:
+    paths:
+      - "apps/frontend/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t frontend:ci apps/frontend
+      - name: Check nginx config
+        # --add-host fakes the "backend" upstream so nginx can resolve it.
+        run: docker run --rm --add-host backend:127.0.0.1 frontend:ci nginx -t
+      - name: Smoke test
+        run: |
+          docker run -d --name fe --add-host backend:127.0.0.1 -p 8080:8080 frontend:ci
+          sleep 3
+          curl -fsS http://localhost:8080/healthz
+          curl -fsS http://localhost:8080/ | grep -q "GitOps lab on GKE"
+
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      service: frontend

@@ -1,0 +1,5 @@
+project_id  = "my-gcp-project-id"
+region      = "us-central1"
+prefix      = "gitops-lab"
+gar_repo    = "gitops-lab"
+github_repo = "my-github-org/gke-gitops-lab"

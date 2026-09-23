@@ -1,0 +1,21 @@
+# App-of-apps: the ONLY thing applied by hand. Everything else comes from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: REPO_URL_PLACEHOLDER
+    targetRevision: main
+    path: argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

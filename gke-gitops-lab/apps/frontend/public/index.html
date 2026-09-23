@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitOps lab on GKE</title>
+<style>
+  :root {
+    --paper: #f3f6f8;
+    --ink: #17263a;
+    --muted: #5b6b7e;
+    --line: #cfd8e1;
+    --panel: #ffffff;
+    --signal: #2456d6;
+    --bad: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  main { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 .25rem; font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 2rem; max-width: 42rem; }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+           border: 1px solid var(--line); background: var(--panel); }
+  .fact { padding: 1rem 1.1rem; border-right: 1px solid var(--line); }
+  .fact:last-child { border-right: 0; }
+  .fact dt { color: var(--muted); font-size: .85rem; }
+  .fact dd { margin: .2rem 0 0; font-size: 1.15rem; font-weight: 600; word-break: break-all; }
+
+  /* The memorable part: each request is a block coloured by the pod that served it. */
+  .traffic { margin-top: 2rem; }
+  .traffic h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
+  .traffic p { margin: 0 0 .75rem; color: var(--muted); font-size: .95rem; }
+  .strip { display: grid; grid-template-columns: repeat(40, 1fr); gap: 3px; min-height: 3.5rem; }
+  .hit { height: 3.5rem; border-radius: 2px; }
+  .hit.err { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, #f2c9c6 4px 8px); }
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: .75rem; font-size: .9rem; }
+  .legend span::before { content: ""; display: inline-block; width: .8rem; height: .8rem;
+                         margin-right: .4rem; vertical-align: -1px; background: var(--c); border-radius: 2px; }
+
+  .controls { display: flex; gap: .75rem; margin-top: 1.25rem; flex-wrap: wrap; }
+  button { font: inherit; padding: .55rem 1rem; border: 1px solid var(--ink); background: var(--panel);
+           color: var(--ink); cursor: pointer; border-radius: 3px; }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  button:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+  .tip { margin-top: 2.5rem; border-left: 4px solid var(--signal); padding: .25rem 0 .25rem 1rem; max-width: 44rem; }
+  .tip h2 { font-size: 1rem; margin: 0; color: var(--muted); font-weight: 600; }
+  .tip p { margin: .25rem 0 0; font-size: 1.1rem; }
+  .status { color: var(--bad); min-height: 1.5rem; margin-top: 1rem; }
+  @media (max-width: 40rem) {
+    .strip { grid-template-columns: repeat(20, 1fr); }
+    .fact { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>GitOps lab on GKE</h1>
+  <p class="sub">Every change you merge travels GitHub Actions → Artifact Registry → Git → Argo CD → GKE.
+     Watch the values below change as your commits roll out.</p>
+
+  <dl class="facts">
+    <div class="fact"><dt>Environment</dt><dd id="env">…</dd></div>
+    <div class="fact"><dt>Frontend version</dt><dd id="fe">…</dd></div>
+    <div class="fact"><dt>Backend version</dt><dd id="be">…</dd></div>
+    <div class="fact"><dt>Last backend pod</dt><dd id="pod">…</dd></div>
+  </dl>
+
+  <section class="traffic" aria-labelledby="traffic-h">
+    <h2 id="traffic-h">Which pod answered each request</h2>
+    <p>One block per request, coloured by backend pod. New colours appear during a rollout or scale-out; striped blocks are failed requests.</p>
+    <div class="strip" id="strip" role="img" aria-label="Recent requests coloured by pod"></div>
+    <div class="legend" id="legend"></div>
+    <div class="controls">
+      <button id="auto" aria-pressed="true">Auto-refresh on</button>
+      <button id="once">Send one request</button>
+      <button id="clear">Clear history</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+  </section>
+
+  <section class="tip">
+    <h2>GCP for AWS and Azure people</h2>
+    <p id="tip">…</p>
+  </section>
+</main>
+
+<script>
+  const MAX = 80;
+  const hits = [];
+  const podInfo = new Map(); // pod -> {colour, version}
+  const $ = (id) => document.getElementById(id);
+
+  function colourFor(pod) {
+    if (!podInfo.has(pod)) {
+      let h = 0;
+      for (const ch of pod) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      podInfo.set(pod, { colour: `hsl(${h % 360} 62% 48%)` });
+    }
+    return podInfo.get(pod).colour;
+  }
+
+  function render() {
+    const strip = $("strip");
+    strip.replaceChildren(...hits.slice(-MAX).map((h) => {
+      const d = document.createElement("div");
+      d.className = "hit" + (h.err ? " err" : "");
+      if (!h.err) d.style.background = colourFor(h.pod);
+      d.title = h.err ? "request failed" : `${h.pod} (${h.version})`;
+      return d;
+    }));
+    const recentPods = [...new Set(hits.slice(-MAX).filter((h) => !h.err).map((h) => h.pod))];
+    $("legend").replaceChildren(...recentPods.map((p) => {
+      const s = document.createElement("span");
+      s.style.setProperty("--c", colourFor(p));
+      s.textContent = `${p}  ${podInfo.get(p).version || ""}`;
+      return s;
+    }));
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch("/api/info", { cache: "no-store" });
+      if (!r.ok) throw new Error(`backend returned HTTP ${r.status}`);
+      const info = await r.json();
+      colourFor(info.pod);
+      podInfo.get(info.pod).version = info.version;
+      hits.push({ pod: info.pod, version: info.version });
+      $("env").textContent = info.environment;
+      $("be").textContent = info.version;
+      $("pod").textContent = info.pod;
+      $("status").textContent = "";
+    } catch (e) {
+      hits.push({ err: true });
+      $("status").textContent = `Backend unreachable: ${e.message}. Check the backend pods and Service in Argo CD.`;
+    }
+    render();
+  }
+
+  async function loadStatic() {
+    try { $("fe").textContent = (await (await fetch("/version.json", { cache: "no-store" })).json()).version; }
+    catch { $("fe").textContent = "unknown"; }
+    try { $("tip").textContent = (await (await fetch("/api/tip")).json()).tip; }
+    catch { $("tip").textContent = "Tips appear once the backend is reachable."; }
+  }
+
+  let timer = setInterval(poll, 1000);
+  $("auto").addEventListener("click", (e) => {
+    const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+    e.currentTarget.setAttribute("aria-pressed", String(on));
+    e.currentTarget.textContent = on ? "Auto-refresh on" : "Auto-refresh off";
+    clearInterval(timer);
+    if (on) timer = setInterval(poll, 1000);
+  });
+  $("once").addEventListener("click", poll);
+  $("clear").addEventListener("click", () => { hits.length = 0; render(); });
+
+  loadStatic();
+  setInterval(loadStatic, 15000);
+  poll();
+</script>
+</body>
+</html>
