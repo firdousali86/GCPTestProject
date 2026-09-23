@@ -1,0 +1,46 @@
+# --- OS / editor ---
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Terraform (infra/terraform) ---
+# State holds project IDs and resource details; tfvars holds your project settings.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfstate.lock.info
+
+# --- Python (apps/backend) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Local secrets / credentials ---
+.env
+.env.*
+!.env.example
+*-key.json
+*.pem
+kubeconfig*
+
+# --- Script leftovers (sed -i.bak in scripts/02-configure-repo.sh) ---
+*.bak
