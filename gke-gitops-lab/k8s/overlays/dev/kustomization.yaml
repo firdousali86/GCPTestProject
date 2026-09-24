@@ -19,8 +19,8 @@ configMapGenerator:
 # CI updates newTag on every merge to main (see .github/workflows/_build-push.yml).
 images:
   - name: backend
-    newName: REGISTRY_PLACEHOLDER/backend
+    newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/backend
     newTag: latest
   - name: frontend
-    newName: REGISTRY_PLACEHOLDER/frontend
+    newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/frontend
     newTag: latest
