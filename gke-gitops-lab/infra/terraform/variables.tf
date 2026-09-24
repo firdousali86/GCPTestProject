@@ -24,4 +24,9 @@ variable "gar_repo" {
 variable "github_repo" {
   description = "GitHub repository allowed to push images, in owner/name form, e.g. acme/gke-gitops-lab"
   type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$", var.github_repo))
+    error_message = "github_repo must be owner/name (e.g. acme/gke-gitops-lab), not a URL."
+  }
 }
