@@ -4,23 +4,23 @@ kind: Kustomization
 namespace: gitops-lab-dev
 
 resources:
-  - ../../base
+- ../../base
 
 labels:
-  - pairs:
-      environment: dev
+- pairs:
+    environment: dev
 
 configMapGenerator:
-  - name: app-config
-    behavior: merge
-    literals:
-      - APP_ENV=dev
+- behavior: merge
+  literals:
+  - APP_ENV=dev
+  name: app-config
 
 # CI updates newTag on every merge to main (see .github/workflows/_build-push.yml).
 images:
-  - name: backend
-    newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/backend
-    newTag: latest
-  - name: frontend
-    newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/frontend
-    newTag: latest
+- name: backend
+  newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/backend
+  newTag: 34d09c5
+- name: frontend
+  newName: us-central1-docker.pkg.dev/testgcpproject-508711/gitops-lab/frontend
+  newTag: latest
