@@ -79,6 +79,35 @@ cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars   #
 
 If your repo is **private**, register it with Argo CD before step 4 (`argocd repo add https://github.com/ORG/REPO.git --username x --password <fine-grained PAT with read access>`), or add a repository Secret as described in the Argo CD docs.
 
+## Verify the deployment
+
+```bash
+# Argo CD components and Applications (dev: Synced/Healthy; prod: OutOfSync until you sync it by hand)
+kubectl -n argocd get pods
+kubectl -n argocd get applications
+
+# Force Argo CD to re-read Git now instead of waiting up to ~3 minutes
+kubectl -n argocd annotate application root argocd.argoproj.io/refresh=hard --overwrite
+
+# Dev app: pods, and the public IP of the frontend LoadBalancer
+kubectl -n gitops-lab-dev get pods,svc
+kubectl -n gitops-lab-dev get svc frontend -w
+curl http://EXTERNAL_IP/api/info          # reports the deployed version and pod name
+
+# Argo CD UI at https://localhost:8443 (user: admin, password printed by 03-install-argocd.sh)
+kubectl -n argocd port-forward svc/argocd-server 8443:443
+
+# Self-heal demo: change the cluster by hand, then watch Argo CD revert it to what Git says
+kubectl -n gitops-lab-dev scale deploy/frontend --replicas=5
+kubectl -n gitops-lab-dev get deploy frontend
+```
+
+To promote to prod, run the **promote-to-prod** workflow, merge the PR it opens, then click **Sync** on `gitops-lab-prod` in Argo CD.
+
+CI commits new image tags to `main`, so run `git pull` before making local changes.
+
+If `kubectl` fails with `gke-gcloud-auth-plugin not found`, run `gcloud components install gke-gcloud-auth-plugin`. With Homebrew's gcloud, also put it on your PATH: `ln -s "$(gcloud info --format='value(installation.sdk_root)')/bin/gke-gcloud-auth-plugin" /opt/homebrew/bin/`.
+
 ## Design choices worth discussing in class
 
 **Monorepo for app and config.** Easier to teach in one repo. In production most teams split application code from the GitOps config repo so that CI write access and deploy history are separated; that split is a stretch exercise.
