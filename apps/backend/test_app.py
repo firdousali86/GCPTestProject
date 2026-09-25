@@ -22,3 +22,6 @@ def test_tip():
     r = client.get("/api/tip")
     assert r.status_code == 200
     assert len(r.json()["tip"]) > 10
+
+
+# sdfsdf

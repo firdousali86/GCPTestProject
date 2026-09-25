@@ -11,3 +11,7 @@ RUN printf '{"version":"%s"}\n' "${APP_VERSION}" > /usr/share/nginx/html/version
 USER 101
 
 EXPOSE 8080
+
+
+
+# sdfsdfsdf
