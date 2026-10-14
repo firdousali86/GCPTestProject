@@ -9,7 +9,7 @@ metadata:
 spec:
   description: GKE GitOps training lab
   sourceRepos:
-    - https://github.com/firdousali86/GCPTestProject.git
+    - https://github.com/nextimadmin/GCPTestProject.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: gitops-lab-*
