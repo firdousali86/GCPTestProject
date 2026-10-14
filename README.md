@@ -124,3 +124,6 @@ If `kubectl` fails with `gke-gcloud-auth-plugin not found`, run `gcloud componen
 
 GKE Autopilot bills for the resources your pods request, plus a cluster management fee that the GKE free tier offsets for one cluster per billing account. Two small environments plus Argo CD are modest for a day, but always run `99-teardown.sh` after class and check the current GKE pricing page for your region.
 .
+
+gh workflow run backend -R nextimadmin/GCPTestProject
+gh workflow run frontend -R nextimadmin/GCPTestProject
