@@ -23,32 +23,32 @@ flowchart LR
 
 ## What's in the box
 
-| Path | Purpose |
-|---|---|
-| `infra/terraform/` | VPC, GKE Autopilot, Artifact Registry, least-privilege node SA, Workload Identity Federation for GitHub |
-| `apps/backend/` | FastAPI service that reports its version and pod name, with unit tests |
-| `apps/frontend/` | nginx static UI that proxies `/api` to the backend and visualises which pod answered each request |
-| `k8s/base`, `k8s/overlays/{dev,prod}` | Kustomize manifests: probes, HPA, non-root security context, per-environment config |
-| `argocd/bootstrap/root-app.yaml` | App-of-apps, the only thing applied by hand |
-| `argocd/apps/` | AppProject guardrails plus dev (auto-sync) and prod (manual sync) Applications |
-| `.github/workflows/` | Per-service CI, a reusable build-push-update workflow, and a promote-to-prod PR workflow |
-| `scripts/` | Numbered scripts that match the lab modules, plus teardown |
-| `docs/LAB_GUIDE.md` | Step-by-step trainee guide with checkpoints and exercises |
-| `docs/PRESENTER_GUIDE.md` | Agenda, talking points, live demo script, troubleshooting |
+| Path                                  | Purpose                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `infra/terraform/`                    | VPC, GKE Autopilot, Artifact Registry, least-privilege node SA, Workload Identity Federation for GitHub |
+| `apps/backend/`                       | FastAPI service that reports its version and pod name, with unit tests                                  |
+| `apps/frontend/`                      | nginx static UI that proxies `/api` to the backend and visualises which pod answered each request       |
+| `k8s/base`, `k8s/overlays/{dev,prod}` | Kustomize manifests: probes, HPA, non-root security context, per-environment config                     |
+| `argocd/bootstrap/root-app.yaml`      | App-of-apps, the only thing applied by hand                                                             |
+| `argocd/apps/`                        | AppProject guardrails plus dev (auto-sync) and prod (manual sync) Applications                          |
+| `.github/workflows/`                  | Per-service CI, a reusable build-push-update workflow, and a promote-to-prod PR workflow                |
+| `scripts/`                            | Numbered scripts that match the lab modules, plus teardown                                              |
+| `docs/LAB_GUIDE.md`                   | Step-by-step trainee guide with checkpoints and exercises                                               |
+| `docs/PRESENTER_GUIDE.md`             | Agenda, talking points, live demo script, troubleshooting                                               |
 
 ## AWS / Azure / GCP cheat sheet
 
-| Concept | AWS | Azure | GCP (this lab) |
-|---|---|---|---|
-| Isolation and billing boundary | Account | Subscription / resource group | Project |
-| Managed Kubernetes | EKS | AKS | GKE |
-| "No node management" mode | EKS Auto Mode / Fargate | AKS Automatic | GKE Autopilot |
-| Container registry | ECR | ACR | Artifact Registry |
-| CI federation, no keys | IAM OIDC provider + role | Entra federated credential | Workload Identity Federation + service account |
-| Pod-to-cloud identity | IRSA / EKS Pod Identity | Entra Workload ID | GKE Workload Identity Federation |
-| Network | Regional VPC | Regional VNet | **Global** VPC, regional subnets |
-| CLI profiles | `aws --profile` | `az account set` | `gcloud config configurations` |
-| Native IaC | CloudFormation | Bicep / ARM | Infrastructure Manager (Terraform) |
+| Concept                        | AWS                      | Azure                         | GCP (this lab)                                 |
+| ------------------------------ | ------------------------ | ----------------------------- | ---------------------------------------------- |
+| Isolation and billing boundary | Account                  | Subscription / resource group | Project                                        |
+| Managed Kubernetes             | EKS                      | AKS                           | GKE                                            |
+| "No node management" mode      | EKS Auto Mode / Fargate  | AKS Automatic                 | GKE Autopilot                                  |
+| Container registry             | ECR                      | ACR                           | Artifact Registry                              |
+| CI federation, no keys         | IAM OIDC provider + role | Entra federated credential    | Workload Identity Federation + service account |
+| Pod-to-cloud identity          | IRSA / EKS Pod Identity  | Entra Workload ID             | GKE Workload Identity Federation               |
+| Network                        | Regional VPC             | Regional VNet                 | **Global** VPC, regional subnets               |
+| CLI profiles                   | `aws --profile`          | `az account set`              | `gcloud config configurations`                 |
+| Native IaC                     | CloudFormation           | Bicep / ARM                   | Infrastructure Manager (Terraform)             |
 
 ## Quick start (trainer dry run, about 45 minutes)
 
@@ -123,3 +123,4 @@ If `kubectl` fails with `gke-gcloud-auth-plugin not found`, run `gcloud componen
 ## Cost note
 
 GKE Autopilot bills for the resources your pods request, plus a cluster management fee that the GKE free tier offsets for one cluster per billing account. Two small environments plus Argo CD are modest for a day, but always run `99-teardown.sh` after class and check the current GKE pricing page for your region.
+.
